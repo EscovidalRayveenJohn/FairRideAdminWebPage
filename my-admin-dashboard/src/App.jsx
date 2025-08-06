@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from './firebaseConfig';
 
 // Import Components
 import Sidebar from './components/Sidebar';
@@ -8,9 +10,31 @@ import Dashboard from './pages/Dashboard';
 import ReportManagement from './pages/ReportManagement';
 import FareMatrixManagement from './pages/FareMatrixManagement';
 import UserManagement from './pages/UserManagement';
+import LoginPage from './pages/LoginPage';
 
 function App() {
   const [section, setSection] = useState('dashboard');
+  const [user, setUser] = useState(null); // To track login state
+  const [loading, setLoading] = useState(true); // To show a loading state
+
+  useEffect(() => {
+    // This listener checks for login/logout changes
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
 
   const sections = {
     dashboard: { 
@@ -35,17 +59,31 @@ function App() {
     },
   };
 
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>; // Or a spinner component
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
   return (
     <div className="bg-gray-100 font-sans">
       <div className="flex h-screen bg-gray-200">
-        <Sidebar activeSection={section} setSection={setSection} sections={sections} />
+        <Sidebar 
+          activeSection={section} 
+          setSection={setSection} 
+          sections={sections}
+          handleLogout={handleLogout} 
+        />
         
         <div className="flex-1 flex flex-col ml-64">
           <header className="h-20 bg-white shadow-md flex items-center justify-between px-8">
             <h2 className="text-2xl font-bold text-gray-800">{sections[section].label}</h2>
             <div className="flex items-center">
-              <span className="text-gray-600 mr-4">Administrator</span>
-              <img className="h-10 w-10 rounded-full object-cover" src="https://placehold.co/100x100/16a34a/ffffff?text=A" alt="Admin avatar" />
+              {/* This is the change to display the user's email */}
+              <span className="text-gray-600 mr-4">{user.email}</span>
+              <img className="h-10 w-10 rounded-full object-cover bg-green-600 text-white flex items-center justify-center font-bold" src={`https://placehold.co/100x100/16a34a/ffffff?text=${user.email[0].toUpperCase()}`} alt="Admin avatar" />
             </div>
           </header>
           <main className="flex-1 p-8 overflow-y-auto">
