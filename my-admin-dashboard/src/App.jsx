@@ -1,26 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from './firebaseConfig';
+import { auth, db } from './firebaseConfig.js';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+
 
 // Import Components
-import Sidebar from './components/Sidebar';
+import Sidebar from './components/Sidebar.jsx';
 
 // Import Pages
-import Dashboard from './pages/Dashboard';
-import ReportManagement from './pages/ReportManagement';
-import FareMatrixManagement from './pages/FareMatrixManagement';
-import UserManagement from './pages/UserManagement';
-import LoginPage from './pages/LoginPage';
+import Dashboard from './pages/Dashboard.jsx';
+import ReportManagement from './pages/ReportManagement.jsx';
+import FareMatrixManagement from './pages/FareMatrixManagement.jsx';
+import UserManagement from './pages/UserManagement.jsx';
+import LoginPage from './pages/LoginPage.jsx';
 
 function App() {
   const [section, setSection] = useState('dashboard');
   const [user, setUser] = useState(null); // To track login state
   const [loading, setLoading] = useState(true); // To show a loading state
+  const [authError, setAuthError] = useState(''); // For deactivation message
 
   useEffect(() => {
-    // This listener checks for login/logout changes
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setAuthError(''); // Clear previous errors
+      if (currentUser) {
+        // User is signed in, check their status in Firestore before proceeding
+        const usersRef = collection(db, 'users');
+        // Find the user document in Firestore that matches the authenticated user's UID
+        const q = query(usersRef, where("uid", "==", currentUser.uid));
+        const querySnapshot = await getDocs(q);
+
+        let isDeactivated = false;
+        if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0].data();
+            if (userDoc.status === 'Deactivated') {
+                isDeactivated = true;
+            }
+        }
+
+        if (isDeactivated) {
+          // If user is deactivated, sign them out and show an error.
+          await signOut(auth);
+          setAuthError('Your account has been deactivated. Please contact an administrator.');
+        } else {
+          // Otherwise, allow them to access the app
+          setUser(currentUser);
+        }
+      } else {
+        // No user is signed in.
+        setUser(null);
+      }
       setLoading(false);
     });
 
@@ -64,7 +93,7 @@ function App() {
   }
 
   if (!user) {
-    return <LoginPage />;
+    return <LoginPage authError={authError} />;
   }
 
   return (
@@ -96,3 +125,4 @@ function App() {
 }
 
 export default App;
+

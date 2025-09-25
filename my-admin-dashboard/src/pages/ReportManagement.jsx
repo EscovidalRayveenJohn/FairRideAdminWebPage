@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '/src/firebaseConfig.js';
-import { collection, onSnapshot, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { db } from '../firebaseConfig.js';
+import { collection, onSnapshot, doc, getDocs, updateDoc, query, where, orderBy } from 'firebase/firestore';
 
 const ReportManagement = () => {
     const [reports, setReports] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
-    const [complainant, setComplainant] = useState(null);
+    const [complainantEmail, setComplainantEmail] = useState('');
 
     useEffect(() => {
         const reportsCollectionRef = collection(db, 'reports');
-        const unsubscribe = onSnapshot(reportsCollectionRef, (snapshot) => {
+        const q = query(reportsCollectionRef, orderBy('timestamp', 'desc'));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const reportsData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
@@ -19,37 +21,37 @@ const ReportManagement = () => {
             setIsLoading(false);
         });
 
-        // Cleanup subscription on unmount
         return () => unsubscribe();
     }, []);
 
-    const fetchComplainantDetails = async (userId) => {
-        if (!userId) {
-            setComplainant({ name: 'Anonymous', email: 'N/A' });
+    const fetchComplainantEmail = async (userName) => {
+        if (!userName || userName === 'Anonymous') {
+            setComplainantEmail('N/A');
             return;
         }
+        setComplainantEmail('Loading...');
         try {
-            // Because user documents seem to be named by a different ID than the userId field,
-            // we will fetch all users and find the one with the matching userId.
-            const usersCollectionRef = collection(db, 'users');
-            const usersSnapshot = await getDocs(usersCollectionRef);
-            const user = usersSnapshot.docs.find(doc => doc.data().uid === userId)?.data();
-
-            if (user) {
-                setComplainant(user);
+            const usersRef = collection(db, "users");
+            // Query to find a user whose 'name' field matches the 'userName' from the report
+            const q = query(usersRef, where("name", "==", userName));
+            const querySnapshot = await getDocs(q);
+            
+            if (!querySnapshot.empty) {
+                // Assuming usernames are unique, take the first result
+                const userDoc = querySnapshot.docs[0].data();
+                setComplainantEmail(userDoc.email || 'Not found');
             } else {
-                setComplainant({ name: 'User not found', email: 'N/A' });
+                setComplainantEmail('User not found');
             }
         } catch (error) {
-            console.error("Error fetching user details: ", error);
-            setComplainant({ name: 'Error fetching name', email: 'N/A' });
+            console.error("Error fetching complainant email:", error);
+            setComplainantEmail('Error fetching email');
         }
     };
 
-
     const handleViewDetails = (report) => {
         setSelectedReport(report);
-        fetchComplainantDetails(report.userId);
+        fetchComplainantEmail(report.userName);
     };
 
     const handleStatusChange = async (newStatus) => {
@@ -58,7 +60,6 @@ const ReportManagement = () => {
         try {
             await updateDoc(reportDocRef, { status: newStatus });
             setSelectedReport(prev => ({ ...prev, status: newStatus }));
-            // The main list will update automatically due to the onSnapshot listener
         } catch (error) {
             console.error("Error updating status: ", error);
         }
@@ -86,7 +87,7 @@ const ReportManagement = () => {
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="p-3 text-sm font-semibold text-gray-600">Case ID</th>
-                            <th className="p-3 text-sm font-semibold text-gray-600">Incident Type</th>
+                            <th className="p-3 text-sm font-semibold text-gray-600">Overcharging</th>
                             <th className="p-3 text-sm font-semibold text-gray-600">Date</th>
                             <th className="p-3 text-sm font-semibold text-gray-600">Status</th>
                             <th className="p-3 text-sm font-semibold text-gray-600">Actions</th>
@@ -96,7 +97,7 @@ const ReportManagement = () => {
                         {reports.map((report) => (
                             <tr key={report.id}>
                                 <td className="p-3 text-sm text-gray-700 font-mono">{report.id.substring(0, 6)}...</td>
-                                <td className="p-3 text-sm text-gray-700">{report.customType}</td>
+                                <td className="p-3 text-sm text-gray-700">{report.type}</td>
                                 <td className="p-3 text-sm text-gray-700">{report.timestamp?.toDate().toLocaleString()}</td>
                                 <td className="p-3">{renderStatusBadge(report.status)}</td>
                                 <td className="p-3">
@@ -118,16 +119,16 @@ const ReportManagement = () => {
                         </div>
                         <div className="space-y-4">
                             <p><strong>Case ID:</strong> {selectedReport.id}</p>
-                            <p><strong>Complainant:</strong> {complainant ? complainant.name : 'Loading...'}</p>
-                            <p><strong>Complainant Email:</strong> {complainant ? complainant.email : 'Loading...'}</p>
+                            <p><strong>Complainant:</strong> {selectedReport.userName || 'Anonymous'}</p>
+                            <p><strong>Complainant Email:</strong> {complainantEmail}</p>
                             <p><strong>Date:</strong> {selectedReport.timestamp?.toDate().toLocaleString()}</p>
                             <p><strong>Status:</strong> {renderStatusBadge(selectedReport.status)}</p>
-                            <p><strong>Incident Type:</strong> {selectedReport.customType}</p>
-                            <p><strong>Plate Number:</strong> {selectedReport.plateNumber || 'N/A'}</p>
+                            <p><strong>Overcharging:</strong> {selectedReport.type}</p>
+                            <p><strong>MTOP:</strong> {selectedReport.mtopNumber || 'N/A'}</p>
                             <p><strong>Description:</strong></p>
                             <p className="p-2 bg-gray-100 rounded">{selectedReport.description}</p>
                             <p><strong>Evidence:</strong> {selectedReport.evidence || 'None'}</p>
-                             {selectedReport.location && (
+                            {selectedReport.location && (
                                 <div>
                                     <strong>Location:</strong>
                                     <a 

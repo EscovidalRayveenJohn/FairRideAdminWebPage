@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebaseConfig';
+import { auth } from '../firebaseConfig.js';
 
-const LoginPage = () => {
+const LoginPage = ({ authError }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -81,7 +81,7 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+          {(error || authError) && <p className="text-sm text-red-600 text-center">{error || authError}</p>}
 
           <div>
             <button
@@ -99,3 +99,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+
