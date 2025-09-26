@@ -3,7 +3,7 @@ import { db } from '../firebaseConfig.js';
 import { collection, onSnapshot, doc, getDocs, updateDoc, query, where, orderBy } from 'firebase/firestore';
 
 const ReportManagement = () => {
-    const [reports, setReports] = useState([]);
+    const [reports, setReports]       = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
     const [complainantEmail, setComplainantEmail] = useState('');
@@ -87,7 +87,7 @@ const ReportManagement = () => {
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="p-3 text-sm font-semibold text-gray-600">Case ID</th>
-                            <th className="p-3 text-sm font-semibold text-gray-600">Overcharging</th>
+                            <th className="p-3 text-sm font-semibold text-gray-600">Report</th>
                             <th className="p-3 text-sm font-semibold text-gray-600">Date</th>
                             <th className="p-3 text-sm font-semibold text-gray-600">Status</th>
                             <th className="p-3 text-sm font-semibold text-gray-600">Actions</th>
@@ -123,7 +123,7 @@ const ReportManagement = () => {
                             <p><strong>Complainant Email:</strong> {complainantEmail}</p>
                             <p><strong>Date:</strong> {selectedReport.timestamp?.toDate().toLocaleString()}</p>
                             <p><strong>Status:</strong> {renderStatusBadge(selectedReport.status)}</p>
-                            <p><strong>Overcharging:</strong> {selectedReport.type}</p>
+                            <p><strong>Report:</strong> {selectedReport.type}</p>
                             <p><strong>MTOP:</strong> {selectedReport.mtopNumber || 'N/A'}</p>
                             <p><strong>Description:</strong></p>
                             <p className="p-2 bg-gray-100 rounded">{selectedReport.description}</p>
@@ -156,4 +156,3 @@ const ReportManagement = () => {
 };
 
 export default ReportManagement;
-

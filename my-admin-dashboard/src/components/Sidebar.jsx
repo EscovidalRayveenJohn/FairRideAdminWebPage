@@ -4,8 +4,8 @@ const Sidebar = ({ activeSection, setSection, sections, handleLogout }) => {
   return (
     <div className="fixed top-0 left-0 w-64 h-full bg-gray-800 text-white flex flex-col z-10">
       <div className="flex items-center justify-center h-20 border-b border-gray-700">
-         <img src="/fairride-logo.png" alt="FairRide Logo" className="w-10 h-10 mr-3 bg-white p-1 rounded-full"/>
-        <h1 className="text-xl font-bold tracking-wider">FairRide</h1>
+         <img src="/fairride-logo.png" alt="FairRide Logo" className="w-12 h-12 mr-3 bg-white p-1 rounded-full object-contain"/>
+        <h1 className="text-xl font-bold tracking-wider">FairRide Koronadal</h1>
       </div>
       <nav className="flex-grow p-4 space-y-2">
         {Object.keys(sections).map(key => (
@@ -38,3 +38,4 @@ const Sidebar = ({ activeSection, setSection, sections, handleLogout }) => {
 };
 
 export default Sidebar;
+

@@ -12,7 +12,8 @@ const Dashboard = () => {
 
     const [userCount, setUserCount] = useState(0);
     const [reportStats, setReportStats] = useState({ total: 0, resolved: 0, pending: 0 });
-    const [weeklyReportData, setWeeklyReportData] = useState(new Array(7).fill(0));
+    const [weeklyPendingData, setWeeklyPendingData] = useState(new Array(7).fill(0));
+    const [weeklyResolvedData, setWeeklyResolvedData] = useState(new Array(7).fill(0));
 
     useEffect(() => {
         const usersCollectionRef = collection(db, 'users');
@@ -27,23 +28,30 @@ const Dashboard = () => {
         const unsubscribe = onSnapshot(reportsCollectionRef, (snapshot) => {
             let resolvedCount = 0;
             let pendingCount = 0;
-            const weekData = new Array(7).fill(0);
+            const pendingWeekData = new Array(7).fill(0);
+            const resolvedWeekData = new Array(7).fill(0);
             const today = new Date();
             const oneWeekAgo = new Date();
+            oneWeekAgo.setHours(0, 0, 0, 0);
             oneWeekAgo.setDate(today.getDate() - 7);
 
             snapshot.docs.forEach(doc => {
                 const report = doc.data();
+                // Use the toDate() method for Firestore Timestamps
+                const reportDate = report.timestamp?.toDate();
+                
                 if (report.status === 'Resolved') {
                     resolvedCount++;
-                } else {
+                    if (reportDate && reportDate >= oneWeekAgo) {
+                        const dayOfWeek = reportDate.getDay();
+                        resolvedWeekData[dayOfWeek]++;
+                    }
+                } else { // This will count any report that is not 'Resolved' as 'Pending'
                     pendingCount++;
-                }
-
-                const reportDate = report.timestamp?.toDate();
-                if (reportDate && reportDate >= oneWeekAgo) {
-                    const dayOfWeek = reportDate.getDay();
-                    weekData[dayOfWeek]++;
+                     if (reportDate && reportDate >= oneWeekAgo) {
+                        const dayOfWeek = reportDate.getDay();
+                        pendingWeekData[dayOfWeek]++;
+                    }
                 }
             });
 
@@ -52,7 +60,8 @@ const Dashboard = () => {
                 resolved: resolvedCount,
                 pending: pendingCount
             });
-            setWeeklyReportData(weekData);
+            setWeeklyPendingData(pendingWeekData);
+            setWeeklyResolvedData(resolvedWeekData);
         });
         return () => unsubscribe();
     }, []);
@@ -67,15 +76,24 @@ const Dashboard = () => {
                 type: 'bar',
                 data: {
                     labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-                    datasets: [{
-                        label: 'Reports',
-                        data: weeklyReportData,
-                        backgroundColor: 'rgba(22, 163, 74, 0.2)',
-                        borderColor: 'rgba(22, 163, 74, 1)',
-                        borderWidth: 2,
-                        borderRadius: 8,
-                        hoverBackgroundColor: 'rgba(22, 163, 74, 0.4)'
-                    }]
+                    datasets: [
+                        {
+                            label: 'Pending Reports',
+                            data: weeklyPendingData,
+                            backgroundColor: 'rgba(239, 68, 68, 0.5)', // Red
+                            borderColor: 'rgba(220, 38, 38, 1)',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                        },
+                        {
+                            label: 'Resolved Reports',
+                            data: weeklyResolvedData,
+                            backgroundColor: 'rgba(168, 85, 247, 0.5)', // Purple
+                            borderColor: 'rgba(147, 51, 234, 1)',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -92,6 +110,7 @@ const Dashboard = () => {
                             }
                         },
                         x: {
+                            stacked: false, 
                             ticks: {
                                 color: '#6b7280'
                             },
@@ -105,7 +124,10 @@ const Dashboard = () => {
                             display: true,
                             position: 'top',
                             labels: {
-                                color: '#374151'
+                                color: '#374151',
+                                font: {
+                                    size: 14
+                                }
                             }
                         },
                         tooltip: {
@@ -113,13 +135,15 @@ const Dashboard = () => {
                             titleColor: '#ffffff',
                             bodyColor: '#ffffff',
                             boxPadding: 8,
-                            cornerRadius: 8
+                            cornerRadius: 8,
+                            mode: 'index',
+                            intersect: false,
                         }
                     }
                 }
             });
         }
-    }, [weeklyReportData]);
+    }, [weeklyPendingData, weeklyResolvedData]);
 
     return (
         <div className="space-y-8">
@@ -127,7 +151,7 @@ const Dashboard = () => {
                 <StatCard title="Total Users" value={userCount} color="blue" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.124-1.282-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.124-1.282.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
                 <StatCard title="Total Reports" value={reportStats.total} color="green" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>} />
                 <StatCard title="Resolved" value={reportStats.resolved} color="purple" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-                <StatCard title="Pending Reports" value={reportStats.pending} color="red" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+                <StatCard title="Pending" value={reportStats.pending} color="red" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-lg">
                 <h3 className="font-semibold text-lg text-gray-800 mb-4">Reports Overview (Last 7 Days)</h3>
@@ -138,3 +162,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
