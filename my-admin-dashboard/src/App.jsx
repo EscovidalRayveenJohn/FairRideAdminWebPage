@@ -16,44 +16,49 @@ import LoginPage from './pages/LoginPage.jsx';
 
 function App() {
   const [section, setSection] = useState('dashboard');
-  const [user, setUser] = useState(null); // To track login state
-  const [loading, setLoading] = useState(true); // To show a loading state
-  const [authError, setAuthError] = useState(''); // For deactivation message
+  const [user, setUser] = useState(null); 
+  const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
+  const [photoURL, setPhotoURL] = useState(null); // To store the user's photo URL
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setAuthError(''); // Clear previous errors
+      setAuthError(''); 
       if (currentUser) {
-        // User is signed in, check their status in Firestore before proceeding
         const usersRef = collection(db, 'users');
-        // Find the user document in Firestore that matches the authenticated user's UID
         const q = query(usersRef, where("uid", "==", currentUser.uid));
         const querySnapshot = await getDocs(q);
 
         let isDeactivated = false;
+        let userPhoto = null;
+
         if (!querySnapshot.empty) {
             const userDoc = querySnapshot.docs[0].data();
             if (userDoc.status === 'Deactivated') {
                 isDeactivated = true;
             }
+            // Check for a photoURL field in the user's document
+            if (userDoc.photoURL) {
+                userPhoto = userDoc.photoURL;
+            }
         }
 
         if (isDeactivated) {
-          // If user is deactivated, sign them out and show an error.
           await signOut(auth);
           setAuthError('Your account has been deactivated. Please contact an administrator.');
+          setUser(null);
+          setPhotoURL(null);
         } else {
-          // Otherwise, allow them to access the app
           setUser(currentUser);
+          setPhotoURL(userPhoto);
         }
       } else {
-        // No user is signed in.
         setUser(null);
+        setPhotoURL(null);
       }
       setLoading(false);
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
@@ -89,7 +94,7 @@ function App() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>; // Or a spinner component
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
   if (!user) {
@@ -110,9 +115,14 @@ function App() {
           <header className="h-20 bg-white shadow-md flex items-center justify-between px-8">
             <h2 className="text-2xl font-bold text-gray-800">{sections[section].label}</h2>
             <div className="flex items-center">
-              {/* This is the change to display the user's email */}
               <span className="text-gray-600 mr-4">{user.email}</span>
-              <img className="h-10 w-10 rounded-full object-cover" src="/fairride-logo.png" alt="Admin avatar" />
+              {photoURL ? (
+                <img className="h-10 w-10 rounded-full object-cover" src={photoURL} alt="Admin avatar" />
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-lg">
+                  {user.email ? user.email[0].toUpperCase() : ''}
+                </div>
+              )}
             </div>
           </header>
           <main className="flex-1 p-8 overflow-y-auto">
