@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebaseConfig.js';
+import { db } from '/src/firebaseConfig.js';
 import { collection, onSnapshot, doc, getDocs, updateDoc, query, where, orderBy } from 'firebase/firestore';
 
 const ReportManagement = () => {
-    const [reports, setReports]       = useState([]);
+    const [reports, setReports] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
     const [complainantEmail, setComplainantEmail] = useState('');
@@ -32,12 +32,10 @@ const ReportManagement = () => {
         setComplainantEmail('Loading...');
         try {
             const usersRef = collection(db, "users");
-            // Query to find a user whose 'name' field matches the 'userName' from the report
             const q = query(usersRef, where("name", "==", userName));
             const querySnapshot = await getDocs(q);
             
             if (!querySnapshot.empty) {
-                // Assuming usernames are unique, take the first result
                 const userDoc = querySnapshot.docs[0].data();
                 setComplainantEmail(userDoc.email || 'Not found');
             } else {
@@ -73,6 +71,24 @@ const ReportManagement = () => {
             default:
                 return <span className="text-xs font-semibold bg-yellow-100 text-yellow-800 py-1 px-2 rounded-full">{status || 'Pending'}</span>;
         }
+    };
+
+    const renderEvidence = (photo) => {
+        // Handle Base64 strings from the mobile app (which include a prefix)
+        if (photo && photo.startsWith('data:image')) {
+            return (
+                 <img src={photo} alt="Evidence" className="mt-2 rounded-lg max-w-full h-auto shadow-md" />
+            );
+        }
+        // Handle URLs (if you ever switch to Firebase Storage)
+        if (photo && (photo.startsWith('http') || photo.startsWith('https'))) {
+            return (
+                <a href={photo} target="_blank" rel="noopener noreferrer">
+                    <img src={photo} alt="Evidence" className="mt-2 rounded-lg max-w-full h-auto shadow-md" />
+                </a>
+            );
+        }
+        return <p>{photo || 'None'}</p>;
     };
 
     if (isLoading) {
@@ -115,7 +131,7 @@ const ReportManagement = () => {
                     <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h4 className="font-bold text-lg">Report Details</h4>
-                            <button onClick={() => setSelectedReport(null)} className="text-gray-500 hover:text-gray-800">&times;</button>
+                            <button onClick={() => setSelectedReport(null)} className="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
                         </div>
                         <div className="space-y-4">
                             <p><strong>Case ID:</strong> {selectedReport.id}</p>
@@ -125,9 +141,14 @@ const ReportManagement = () => {
                             <p><strong>Status:</strong> {renderStatusBadge(selectedReport.status)}</p>
                             <p><strong>Report:</strong> {selectedReport.type}</p>
                             <p><strong>MTOP:</strong> {selectedReport.mtopNumber || 'N/A'}</p>
-                            <p><strong>Description:</strong></p>
-                            <p className="p-2 bg-gray-100 rounded">{selectedReport.description}</p>
-                            <p><strong>Evidence:</strong> {selectedReport.evidence || 'None'}</p>
+                            <div>
+                                <p><strong>Description:</strong></p>
+                                <p className="p-2 bg-gray-100 rounded mt-1">{selectedReport.description}</p>
+                            </div>
+                            <div>
+                               <p><strong>Evidence:</strong></p>
+                                {renderEvidence(selectedReport.photo)}
+                            </div>
                             {selectedReport.location && (
                                 <div>
                                     <strong>Location:</strong>
@@ -156,3 +177,4 @@ const ReportManagement = () => {
 };
 
 export default ReportManagement;
+
