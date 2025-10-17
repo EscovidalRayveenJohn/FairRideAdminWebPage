@@ -7,6 +7,7 @@ const ReportManagement = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
     const [complainantEmail, setComplainantEmail] = useState('');
+    const [complainantContact, setComplainantContact] = useState('');
 
     useEffect(() => {
         const reportsCollectionRef = collection(db, 'reports');
@@ -24,12 +25,14 @@ const ReportManagement = () => {
         return () => unsubscribe();
     }, []);
 
-    const fetchComplainantEmail = async (userName) => {
+    const fetchComplainantDetails = async (userName) => {
         if (!userName || userName === 'Anonymous') {
             setComplainantEmail('N/A');
+            setComplainantContact('N/A');
             return;
         }
         setComplainantEmail('Loading...');
+        setComplainantContact('Loading...');
         try {
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("name", "==", userName));
@@ -38,18 +41,21 @@ const ReportManagement = () => {
             if (!querySnapshot.empty) {
                 const userDoc = querySnapshot.docs[0].data();
                 setComplainantEmail(userDoc.email || 'Not found');
+                setComplainantContact(userDoc.contact || 'Not found');
             } else {
                 setComplainantEmail('User not found');
+                setComplainantContact('User not found');
             }
         } catch (error) {
-            console.error("Error fetching complainant email:", error);
+            console.error("Error fetching complainant details:", error);
             setComplainantEmail('Error fetching email');
+            setComplainantContact('Error fetching contact');
         }
     };
 
     const handleViewDetails = (report) => {
         setSelectedReport(report);
-        fetchComplainantEmail(report.userName);
+        fetchComplainantDetails(report.userName);
     };
 
     const handleStatusChange = async (newStatus) => {
@@ -135,6 +141,7 @@ const ReportManagement = () => {
                             <div><strong>Case ID:</strong> <span className="font-mono text-gray-700">{selectedReport.id}</span></div>
                             <div><strong>Complainant:</strong> <span className="text-gray-700">{selectedReport.userName || 'Anonymous'}</span></div>
                             <div><strong>Complainant Email:</strong> <span className="text-gray-700">{complainantEmail}</span></div>
+                            <div><strong>Contact Number:</strong> <span className="text-gray-700">{complainantContact}</span></div>
                             <div><strong>Date:</strong> <span className="text-gray-700">{selectedReport.timestamp?.toDate().toLocaleString()}</span></div>
                             <div><strong>Status:</strong> {renderStatusBadge(selectedReport.status)}</div>
                             <div><strong>Report:</strong> <span className="text-gray-700">{selectedReport.type}</span></div>
